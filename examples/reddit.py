@@ -10,13 +10,14 @@ from torch_geometric.nn import SAGEConv, GATConv
 parser = argparse.ArgumentParser()
 parser.add_argument('--model', type=str, default='SAGE')
 args = parser.parse_args()
-assert args.model in ['SAGE', 'GAT']
+assert args.model in ['SAGE', 'GAT', 'EP']
 
 path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', 'Reddit')
 dataset = Reddit(path)
 data = dataset[0]
 loader = NeighborSampler(data, size=[25, 10], num_hops=2, batch_size=1000,
                          shuffle=True, add_self_loops=True)
+print(data.edge_index.shape, data.x.shape)
 
 
 class SAGENet(torch.nn.Module):
@@ -81,6 +82,7 @@ def test(mask):
     correct = 0
     for data_flow in loader(mask):
         pred = model(data.x.to(device), data_flow.to(device)).max(1)[1]
+        print('pred', pred.shape, pred)
         correct += pred.eq(data.y[data_flow.n_id].to(device)).sum().item()
     return correct / mask.sum().item()
 

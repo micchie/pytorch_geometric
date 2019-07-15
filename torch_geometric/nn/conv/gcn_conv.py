@@ -63,14 +63,15 @@ class GCNConv(MessagePassing):
 
     @staticmethod
     def norm(edge_index, num_nodes, edge_weight=None, improved=False,
-             dtype=None):
+             dtype=None, noselfloop=False):
         if edge_weight is None:
             edge_weight = torch.ones((edge_index.size(1), ), dtype=dtype,
                                      device=edge_index.device)
 
         fill_value = 1 if not improved else 2
-        edge_index, edge_weight = add_remaining_self_loops(
-            edge_index, edge_weight, fill_value, num_nodes)
+        if not noselfloop:
+            edge_index, edge_weight = add_remaining_self_loops(
+                edge_index, edge_weight, fill_value, num_nodes)
 
         row, col = edge_index
         deg = scatter_add(edge_weight, row, dim=0, dim_size=num_nodes)
@@ -79,7 +80,7 @@ class GCNConv(MessagePassing):
 
         return edge_index, deg_inv_sqrt[row] * edge_weight * deg_inv_sqrt[col]
 
-    def forward(self, x, edge_index, edge_weight=None):
+    def forward(self, x, edge_index, edge_weight=None, noselfloop=False):
         """"""
         x = torch.matmul(x, self.weight)
 
@@ -94,7 +95,8 @@ class GCNConv(MessagePassing):
         if not self.cached or self.cached_result is None:
             self.cached_num_edges = edge_index.size(1)
             edge_index, norm = self.norm(edge_index, x.size(self.node_dim),
-                                         edge_weight, self.improved, x.dtype)
+                                         edge_weight, self.improved, x.dtype,
+                                         noselfloop)
             self.cached_result = edge_index, norm
 
         edge_index, norm = self.cached_result
